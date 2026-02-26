@@ -1,5 +1,6 @@
 # Large data files
 *.zip
+*.pkl
 dataset/
 
 # MATLAB compiled
