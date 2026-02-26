@@ -12,18 +12,6 @@ Fast synthetic plume generation with high-quality data.
   <p><em>Environment Fluid Dynamics Lab</em></p>
 </div>
 
-## Features
-
-- Two bubble selection methods: `direct_pdf` (100% distribution match) or `weighted_sampling` (90-95% match, considers data availability)
-- Mixed mode: randomizes bubble count, placement mode, and parameters every 10% of images
-- Size distributions: Gaussian, Weibull, Lognormal, Bimodal, Constant
-- Placement modes: Gaussian or Random
-- ROI shapes: Trapezoid (entrainment model) or Rectangle
-- Velocity-based size bias: large bubbles prefer high-velocity center regions
-- Unidirectional overlap control: protects existing bubbles from occlusion
-- Feathering and background image support
-- K-S test validation and auto-logging
-
 <div align="center">
   <img src="Generator/assets/demo.gif" alt="PlumeDEBuG Bubble Generation Demo" width="600">
   <p><em>Example of synthetic bubble plume generation</em></p>
