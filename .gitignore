@@ -1,0 +1,14 @@
+# Large data files
+*.zip
+dataset/
+
+# MATLAB compiled
+*.asv
+*.mex*
+
+# Claude internal
+.claude/
+
+# OS
+Thumbs.db
+.DS_Store

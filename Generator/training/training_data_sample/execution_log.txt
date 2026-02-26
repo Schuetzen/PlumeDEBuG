@@ -1,0 +1,50 @@
+================================================================================
+BubbleGen V3 - Execution Log
+================================================================================
+Start time: 2026-02-26 16:51:19
+================================================================================
+
+============================================================
+BubbleGen V3 - Two-Method Selection System
+============================================================
+Output directory: output\run28
+Distribution: bimodal
+Selection method: direct_pdf
+ROI type: Trapezoid
+============================================================
+Loading bubble data from cache...
+Loaded 79936 bubbles
+
+Using DIRECT_PDF method (pure distribution matching)
+  Formula: probability = target_PDF only (ignores bubble counts)
+  Note: May over-sample from bins with few bubbles
+
+Generating documentation...
+Configuration file copied to output\run28\config.ini
+ROI visualization saved to output\run28\roi_visualization.png
+
+Generating synthetic images...
+Trapezoid ROI: base=384px, top=600px, slope=0.1
+Velocity-based size bias DISABLED (uniform size distribution across ROI)
+
+Generating statistics...
+K-S test: statistic=0.0719, p-value=0.0000
+
+============================================================
+Generated 100 images in output\run28
+
+Output files:
+  - execution_log.txt          (Complete execution log with all output)
+  - config.ini                 (Configuration file)
+  - roi_visualization.png      (ROI visualization)
+  - bubble_diameter_histogram.png/pdf (Diameter distribution)
+  - synth_XXXX.png/json        (Synthetic images and annotations)
+============================================================
+BubbleGen Complete!
+
+Full execution log saved to: output\run28\execution_log.txt
+
+================================================================================
+End time: 2026-02-26 16:52:47
+Duration: 0:01:28.037897
+================================================================================
