@@ -340,4 +340,4 @@ Project: https://github.com/Schuetzen/PlumeDEBuG
 
 ---
 
-*Documentation and tooling assisted by [Claude Code](https://claude.ai/claude-code) (Anthropic)*
+*Tooling assisted by [Claude Code](https://claude.ai/) (Anthropic)*
