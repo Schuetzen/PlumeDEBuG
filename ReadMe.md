@@ -7,10 +7,12 @@
 Fast synthetic plume generation with high-quality data.
 .
 
-<div align="left">
+<div align="center">
   <img src="Generator/assets/thumbnail_EFDL_logo_black.png" alt="PlumeDEBuG Mode Type" width="200">
   <p><em>Environment Fluid Dynamics Lab</em></p>
 </div>
+
+## Feature
 
 <div align="center">
   <img src="Generator/assets/demo.gif" alt="PlumeDEBuG Bubble Generation Demo" width="600">
