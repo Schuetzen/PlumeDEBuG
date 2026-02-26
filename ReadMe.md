@@ -5,11 +5,11 @@
 
 **Plume-Data Empowered Bubble Generator (PlumeDEBuG)**
 Fast synthetic plume generation with high-quality data.
-.
+
 
 <div align="center">
   <img src="Generator/assets/thumbnail_EFDL_logo_black.png" alt="PlumeDEBuG Mode Type" width="200">
-  <p><em>Environment Fluid Dynamics Lab</em></p>
+  <p><em>Powered by Environment Fluid Dynamics Lab</em></p>
 </div>
 
 ## Feature
@@ -337,3 +337,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 Project: https://github.com/Schuetzen/PlumeDEBuG
 
 **Dr. Binbin Wang** -  wangbinb@umsystem.edu
+
+---
+
+*Documentation and tooling assisted by [Claude Code](https://claude.ai/claude-code) (Anthropic)*
