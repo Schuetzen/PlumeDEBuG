@@ -60,6 +60,10 @@ BIMODAL_WEIGHT1 = config.getfloat('Bimodal', 'weight1', fallback=0.6)  # Weight 
 # Constant parameters
 CONSTANT_TARGET = config.getfloat('Constant', 'target', fallback=0.003)
 
+# Uniform parameters (paper-aligned: f(r) = 1/(2*delta) over [r0-delta, r0+delta])
+UNIFORM_R0 = config.getfloat('Uniform', 'uniform_r0', fallback=0.003)
+UNIFORM_DELTA = config.getfloat('Uniform', 'uniform_delta', fallback=0.001)
+
 # Visualization parameters - Simple size mapping
 # Map diameter ranges to fixed pixel sizes (simpler logic)
 # 1-2mm -> 6 pixels, 2-3mm -> 9 pixels, 3-4mm -> 12 pixels, etc.
@@ -176,8 +180,17 @@ def get_target_pdf_func():
         target_mm = config.getfloat('Constant', 'target', fallback=0.003) * 1000
         return lambda x: np.where((x >= target_mm - 0.5) & (x <= target_mm + 0.5), 1.0, 0.0)
     
+    elif DIST_TYPE == "uniform":
+        # Paper-aligned: f(r) = 1/(2*delta) over [r0-delta, r0+delta]
+        r0_mm = UNIFORM_R0 * 1000
+        delta_mm = UNIFORM_DELTA * 1000
+        return lambda x: np.where(
+            (x >= (r0_mm - delta_mm)) & (x <= (r0_mm + delta_mm)),
+            1.0 / (2.0 * delta_mm),
+            0.0
+        )
+
     else:
-        # Uniform
         return lambda x: np.ones_like(x)
 
 
@@ -256,6 +269,40 @@ def select_bubble_from_database(stratified_data, bin_edges, target_weights):
         diameter_mm = (bin_edges[chosen_bin] + bin_edges[chosen_bin + 1]) / 2
 
     return diameter_mm
+
+
+# -------------------------------
+# AABB Overlap Detection (matches bubble_gen_public.py Eq. 6-7)
+# -------------------------------
+def compute_bbox_intersection_area(b1, b2):
+    """
+    Compute intersection area of two axis-aligned bounding boxes.
+    Each bbox: (x_min, y_min, x_max, y_max)
+    """
+    ix1 = max(b1[0], b2[0])
+    iy1 = max(b1[1], b2[1])
+    ix2 = min(b1[2], b2[2])
+    iy2 = min(b1[3], b2[3])
+    if ix2 > ix1 and iy2 > iy1:
+        return (ix2 - ix1) * (iy2 - iy1)
+    return 0.0
+
+
+def check_overlap_aabb(new_bbox, existing_bboxes, single_threshold):
+    """
+    AABB-based overlap check matching bubble_gen_public.py Eq. 6-7.
+    R_neighbor = A_intersection / A_neighbor > w_ol  ->  reject (True = overlap detected).
+    Unidirectional: checks how much of each existing bubble is covered by the new one.
+    """
+    max_existing_ratio = 0.0
+    for existing_bbox in existing_bboxes:
+        inter_area = compute_bbox_intersection_area(new_bbox, existing_bbox)
+        if inter_area > 0:
+            existing_area = (existing_bbox[2] - existing_bbox[0]) * (existing_bbox[3] - existing_bbox[1])
+            if existing_area > 0:
+                ratio = inter_area / existing_area
+                max_existing_ratio = max(max_existing_ratio, ratio)
+    return max_existing_ratio > single_threshold
 
 
 # -------------------------------
@@ -927,11 +974,19 @@ def plot_unified_parameter_diagram():
                 color='#666666', linewidth=1.2, linestyle='--', alpha=0.5, zorder=3)
 
     # Generate bubbles using v3 logic: select from database based on target distribution
-    placed_bubbles = []
+    placed_bubbles = []  # each entry: (x, y, radius_px, bbox)
     max_attempts_per_bubble = 50
     np.random.seed(42)
 
+    # Void fraction tracking (matches public.py pixel-mask accumulation, approximated via circle bbox area)
+    roi_area = (base_w + top_w) * canvas_h / 2.0  # trapezoid area
+    roi_acc_area = 0.0
+
     for _ in range(MAX_BUBBLES_PER_IMAGE):
+        # Void fraction stop condition (matches public.py)
+        if roi_area > 0 and roi_acc_area / roi_area >= TARGET_VOID_FRACTION:
+            break
+
         placed = False
         attempts = 0
 
@@ -989,23 +1044,19 @@ def plot_unified_parameter_diagram():
             if x < roi_left + bubble_radius_px or x > roi_right - bubble_radius_px:
                 continue
 
-            # STEP 4: Check overlap using simple distance-based collision detection
-            min_dist = bubble_radius_px * 2 * (1 - overlap_control)
-            too_close = False
+            # STEP 4: AABB overlap check (matches public.py Eq. 6-7)
+            # Bounding box for the simulated circle
+            new_bbox = (x - bubble_radius_px, y - bubble_radius_px,
+                        x + bubble_radius_px, y + bubble_radius_px)
+            existing_bboxes = [bb for _, _, _, bb in placed_bubbles]
 
-            for existing_x, existing_y, existing_r in placed_bubbles:
-                dist = np.sqrt((x - existing_x)**2 + (y - existing_y)**2)
-                min_required = bubble_radius_px + existing_r
-                if dist < min_required * (1 - overlap_control):
-                    too_close = True
-                    break
-
-            if not too_close:
-                placed_bubbles.append((x, y, bubble_radius_px))
+            if not check_overlap_aabb(new_bbox, existing_bboxes, overlap_control):
+                placed_bubbles.append((x, y, bubble_radius_px, new_bbox))
+                roi_acc_area += np.pi * bubble_radius_px ** 2  # circle area proxy for mask
                 placed = True
 
     # Draw bubbles as circles with sizes from database
-    for x, y, r in placed_bubbles:
+    for x, y, r, _ in placed_bubbles:
         circle = plt.Circle((x, y), r, facecolor='#2b7bba',
                            alpha=0.65, edgecolor='white', linewidth=0.8, zorder=4)
         ax_main.add_patch(circle)
@@ -1089,28 +1140,36 @@ def plot_unified_parameter_diagram():
                 ha='right', va='center', fontsize=8, color=slope_color,
                 family='serif', fontweight='bold', zorder=TEXT_ZORDER)
 
-    # Result count with warning if target not reached
+    # Result count + void fraction display
     result_y = canvas_w_y - 12
     actual_count = len(placed_bubbles)
     target_count = MAX_BUBBLES_PER_IMAGE
+    actual_vf = roi_acc_area / roi_area if roi_area > 0 else 0
+    vf_stopped = (roi_area > 0 and actual_vf >= TARGET_VOID_FRACTION and actual_count < target_count)
 
-    if actual_count < target_count:
-        # Red warning if target not reached
-        count_text = f'⚠️ n = {actual_count}/{target_count} bubbles'
-        count_color = '#e74c3c'  # Red
+    if vf_stopped:
+        # Stopped by void fraction target (normal termination)
+        count_text = f'n = {actual_count} bubbles  |  VF = {actual_vf:.3f} (target {TARGET_VOID_FRACTION:.3f} reached)'
+        count_color = '#2ecc71'
+        ax_main.text(canvas_w/2, result_y, count_text,
+                    ha='center', fontsize=9, fontweight='bold', color=count_color,
+                    family='serif', zorder=TEXT_ZORDER)
+    elif actual_count < target_count:
+        # Red warning if neither target was reached
+        count_text = f'n = {actual_count}/{target_count} bubbles  |  VF = {actual_vf:.3f}'
+        count_color = '#e74c3c'
         ax_main.text(canvas_w/2, result_y, count_text,
                     ha='center', fontsize=10, fontweight='bold', color=count_color,
                     family='serif', zorder=TEXT_ZORDER)
-        # Additional warning message
         warning_y = result_y - 8
         ax_main.text(canvas_w/2, warning_y,
-                    '⚠️ Check parameters: overlap_control, BASE_PIXEL_SIZE, or canvas size',
+                    'Check parameters: overlap_control, BASE_PIXEL_SIZE, or canvas size',
                     ha='center', fontsize=8, color=count_color, style='italic',
                     family='serif', zorder=TEXT_ZORDER)
     else:
-        # Normal display if target reached
-        count_text = f'n = {actual_count} bubbles'
-        count_color = '#333333'  # Black
+        # Max bubble count reached
+        count_text = f'n = {actual_count} bubbles  |  VF = {actual_vf:.3f}'
+        count_color = '#333333'
         ax_main.text(canvas_w/2, result_y, count_text,
                     ha='center', fontsize=10, fontweight='bold', color=count_color,
                     family='serif', zorder=TEXT_ZORDER)
@@ -1121,10 +1180,13 @@ def plot_unified_parameter_diagram():
     ax_main.set_aspect('equal')
     ax_main.axis('off')
 
-    # Console warning if target not reached
-    if actual_count < target_count:
+    # Console summary
+    print(f"  Bubbles placed: {actual_count}  |  Void fraction: {actual_vf:.4f} (target: {TARGET_VOID_FRACTION})")
+    if vf_stopped:
+        print(f"  Stopped: void fraction target reached.")
+    elif actual_count < target_count:
         print(f"\n{'='*60}")
-        print(f"⚠️  WARNING: Target bubble count not reached!")
+        print(f"WARNING: Target bubble count not reached!")
         print(f"{'='*60}")
         print(f"  Target:  {target_count} bubbles")
         print(f"  Actual:  {actual_count} bubbles")

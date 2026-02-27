@@ -3,6 +3,14 @@
 *.pkl
 dataset/
 
+# Model weights (too large for GitHub)
+trained_model/
+*.pt
+*.pth
+
+# Generated database
+Aggregated_bubble_data/aggregated_results.db
+
 # MATLAB compiled
 *.asv
 *.mex*

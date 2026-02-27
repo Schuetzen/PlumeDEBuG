@@ -1,342 +1,346 @@
 # PlumeDEBuG
 
-[![Python Version](https://img.shields.io/badge/python-3.7%2B-blue.svg)](https://www.python.org/)
+[![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Plume-Data Empowered Bubble Generator (PlumeDEBuG)**
-Fast synthetic plume generation with high-quality data.
+**Plume-Data Empowered Bubble-image Generator**
 
-
-<div align="center">
-  <img src="Generator/assets/thumbnail_EFDL_logo_black.png" alt="PlumeDEBuG Mode Type" width="200">
-  <p><em>Powered by Environment Fluid Dynamics Lab</em></p>
-</div>
-
-## Feature
+Synthetic bubble plume image generator that reproduces key physical characteristics of bubble plumes — including bubble size distributions, plume geometry, void fraction, and spatial overlap constraints.
 
 <div align="center">
-  <img src="Generator/assets/demo.gif" alt="PlumeDEBuG Bubble Generation Demo" width="600">
-  <p><em>Example of synthetic bubble plume generation</em></p>
+  <img src="Generator/assets/thumbnail_EFDL_logo_black.png" alt="EFDL Logo" width="180">
+  <p><em>Environment Fluid Dynamics Lab</em></p>
 </div>
 
+---
+
+## Demo
+
+<div align="center">
+  <img src="Generator/assets/demo.gif" alt="Synthetic bubble plume generation demo" width="620">
+  <p><em>Synthetic bubble plume generation</em></p>
+</div>
+
+---
+
+## Key Features
+
+- **Five bubble size distributions**: Gaussian, Lognormal, Weibull, Bimodal, Uniform
+- **Trapezoid ROI plume model**: `W(y) = W₀ + 2ky` (Eq. 9)
+- **Unidirectional overlap detection**: `R = A_int / A_exist > w_ol` (Eq. 6–7)
+- **Quadtree spatial acceleration**: O(n log n) collision queries
+- **Two selection methods**: `weighted_sampling` (default) and `direct_pdf`
+- **Feathered compositing**: erosion + Gaussian blur + alpha blend (Eq. 12–18)
+- **COCO-style JSON annotations** per image
+- **K-S test** for distribution validation
+
+---
 
 ## Quick Start
 
 ### Installation
 
 ```bash
-git clone https://github.com/YourUsername/PlumeDEBuG.git
-cd PlumeDEBuG
+git clone https://github.com/Schuetzen/PlumeDEBuG.git
+cd PlumeDEBuG/Generator
 
-# Fast setup (recommended)
-cd Generator
-./setup.bat
+# Option A: automated setup (Windows)
+setup.bat
 
-# Or setup environment manually
+# Option B: manual
 conda env create -f environment/environment.yml
 conda activate PlumeDEBuG
 ```
 
-### Usage
+### Generate images
 
 ```bash
 cd Generator
 
-# Generate images
-python bubble_gen.py
+# Edit config.ini, then:
+python bubble_gen_public.py
 
-# Generate parameter illustrations
+# Visualize parameters (no real images generated)
 python bubble_gen_illustration.py
 ```
 
-### Core Parameters
+Output is saved to `Generator/output/run<N>/` (auto-numbered).
+
+### Dataset
+
+Download the public bubble dataset from [Zenodo](https://zenodo.org/records/18793954) and place it under `dataset/`.
+
+---
+
+## Configuration (`config.ini`)
+
+### General
 
 ```ini
 [General]
-num_synthetic_images = 100        # Images to generate
-target_void_fraction = 0.15       # Bubble coverage (0-1)
-max_bubbles_per_image = 200       # Max bubbles per image
+num_synthetic_images = 100        ; Number of images to generate
+max_bubbles_per_image = 200       ; Upper bound on bubbles per image
+target_void_fraction = 0.15       ; Stop condition: halt when coverage reached (0–1)
+```
 
+### Placement
+
+```ini
+[Placement]
+placement_mode = Gaussian         ; Gaussian | Random
+overlap_control = 0.4             ; Max allowed occlusion ratio w_ol (Eq. 6-7)
+use_trapezoid_roi = True          ; Enable plume growth model
+entrainment_slope = 0.1           ; Plume growth rate k
+base_width_ratio = 0.20           ; W₀ as fraction of canvas width
+gaussian_scale_divisor = 4.0      ; Gaussian x-spread divisor σ_div
+```
+
+### Distribution
+
+```ini
 [Distribution]
-distribution_type = gaussian      # gaussian | bimodal | weibull | lognormal | constant
-selection_method = weighted_sampling  # weighted_sampling (default) | direct_pdf
+distribution_type = lognormal     ; gaussian | lognormal | weibull | bimodal | uniform
+selection_method = weighted_sampling  ; weighted_sampling (default) | direct_pdf
+```
 
-# Sample distribution:
+Distribution-specific sections (only the active one is used):
 
+```ini
 [Gaussian]
-mu = 0.003                        # Mean diameter (m)
-sigma = 0.001                     # Std deviation (m)
+mu = 0.002          ; Mean diameter (m)
+sigma = 0.002       ; Std deviation (m)
+
+[Lognormal]
+lognormal_mu = -5.8         ; Log-mean μ_ln
+lognormal_sigma = 0.5       ; Log-std σ_ln
+
+[Weibull]
+weibull_shape = 1.0         ; Shape k
+weibull_scale = 0.004       ; Scale λ (m)
 
 [Bimodal]
-mu1 = 0.002                       # Mode 1 mean (m)
-sigma1 = 0.0005                   # Mode 1 std (m)
-mu2 = 0.005                       # Mode 2 mean (m)
-sigma2 = 0.001                    # Mode 2 std (m)
-weight1 = 0.6                     # Mode 1 weight (0-1)
+mu1 = 0.002    sigma1 = 0.0005    ; Mode 1 (m)
+mu2 = 0.005    sigma2 = 0.001     ; Mode 2 (m)
+weight1 = 0.6                     ; Mode 1 mixing weight
 
-[Placement]
-placement_mode = Guassian         # Guassian | Random
-overlap_control = 0.3             # Max overlap ratio (0-1)
-entrainment_slope = 0.1           # Trapezoid expansion rate
-base_width_ratio = 0.3            # Bottom width / canvas width
-
+[Uniform]
+r0 = 0.003          ; Central diameter (m)
+delta = 0.001       ; Half-range (m), f(r) = 1/(2δ) on [r₀−δ, r₀+δ]
 ```
+
+### Experimental features (disabled by default)
+
+| Section | Description |
+|---|---|
+| `[Experimental_MixedMode]` | Randomize parameters every 10% of images |
+| `[Experimental_VelocityBias]` | Size-velocity coupling (large bubbles near plume center) |
+| `[Experimental_CumulativeOverlap]` | Cumulative overlap threshold in addition to per-bubble check |
+
+---
+
+## Selection Methods
+
+| Method | Description |
+|---|---|
+| `weighted_sampling` | Multiplies target PDF weight by bin sample count — balances distribution fidelity with data availability. **Default.** |
+| `direct_pdf` | Samples bins according to target PDF only, ignoring how many real bubbles exist per bin. |
+
+---
 
 ## Project Structure
 
 ```
 PlumeDEBuG/
 ├── Generator/
-│   ├── bubble_gen.py              # Main generator
-│   ├── bubble_gen_illustration.py # Parameter visualizer
-│   ├── config.ini                 # Config file
-│   ├── bubble_cache.pkl           # Cached bubble database
-│   ├── output/                    # Generated images (auto-numbered runs)
-│   │   ├── run0/
-│   │   │   ├── synth_0000.png/json
-│   │   │   ├── execution_log.txt
-│   │   │   ├── config.ini
-│   │   │   ├── roi_visualization.png
-│   │   │   ├── bubble_diameter_histogram.png/pdf
-│   │   │   └── mixed_params_batch*.json (if mixed mode enabled)
-│   │   └── run1/
-│   └── parameter_illustrations/   # Auto-generated diagrams
+│   ├── bubble_gen_public.py        Main image generator (v5.0, paper-aligned)
+│   ├── bubble_gen_illustration.py  Parameter visualizer (matplotlib simulation only)
+│   ├── config.ini                  All parameters
+│   ├── visualize_simple.py         Quick output viewer
+│   ├── setup.bat                   Windows environment setup
+│   ├── environment/
+│   │   ├── environment.yml
+│   │   └── requirements.txt
+│   ├── assets/                     Demo images and logos
+│   ├── output/                     Generated runs (auto-numbered)
+│   │   └── run<N>/
+│   │       ├── synth_XXXX.png      Synthetic image
+│   │       ├── synth_XXXX.json     COCO-style annotation
+│   │       ├── execution_log.txt
+│   │       ├── config.ini          Config snapshot for this run
+│   │       ├── roi_visualization.png
+│   │       └── bubble_diameter_histogram.png
+│   └── parameter_illustrations/    Output of bubble_gen_illustration.py
 │       ├── unified_parameter_diagram.png/pdf
-│       ├── size_distribution.png/pdf
 │       └── distribution_comparison.png/pdf
-├── tools/                         # Database preprocessing tools
-│   ├── mat_to_sqlite.py           # .mat → SQLite converter
-│   ├── combine_datasets.m         # Merge multiple datasets
-│   ├── sync_database.m            # Sync .mat/crops/masks
-│   ├── filter_size_bins.m         # Balance size distribution
-│   ├── plot_distribution.m        # Visualize distribution
-│   └── ...                        # (See Database Tools section)
-└── README.md
+├── dataset/                        Raw bubble image datasets
+│   ├── <folder>/
+│   │   ├── Dataset/Cropped/
+│   │   ├── Dataset/Masks/
+│   │   └── aggregated_results.mat
+│   ├── background_tank.tif
+│   └── DataInfo.txt
+├── Aggregated_bubble_data/
+│   ├── aggregated_results.mat      Merged dataset
+│   └── aggregated_results.db       SQLite database (used by generator)
+├── trained_model/
+│   ├── yolov11/                    YOLOv11 bubble detection weights
+│   └── SAM/                        SAM segmentation checkpoint
+├── tools/                          Dataset preprocessing (MATLAB + Python)
+└── ReadMe.md
 ```
 
-## Selection Methods
-
-| Method | Accuracy | Description |
-|--------|----------|-------------|
-| `weighted_sampling` | 90-95% | Balances distribution matching with data availability.  |
-| `direct_pdf` | ~100% | Pure distribution matching, ignores bubble counts per bin. May over-sample rare bins. |
-
-## Mixed Mode (Optional)
-
-When `enable_mixed_mode = True`, randomizes every 10% of images:
-- Bubble count: `max_bubbles ± 50`
-- Placement mode: randomly Gaussian or Random
-- Parameters: `overlap_control`, `entrainment_slope`, `base_width_ratio` vary by ±30%
-- Saves parameters to `mixed_params_batch*.json`
-
-## Velocity-Based Size Bias (Optional)
-
-When `enable_velocity_size_bias = True`:
-- High-velocity center: can carry large bubbles
-- Low-velocity edges: only small bubbles allowed
-- Physics: bubble size ∝ velocity^coupling_strength
-
-## Overlap Control
-
-Unidirectional method: `R = A_intersection / A_existing`
-- Protects existing bubbles from occlusion
-- Rejects new bubble if any existing bubble is >30% covered (default threshold)
-- Quadtree acceleration for collision detection
+---
 
 ## Complete Workflow
 
-**Quick Reference:**
 ```
 New Images → Validate → Compute Metrics → Merge → Balance → SQLite → Generate
   (Step 1)    (Step 2)     (Step 3)      (Step 4)  (Step 5)  (Step 6)   (Step 7)
 ```
 
-### Step 1: Add New Images to Dataset
+### Step 1 — Add new images
 
-**Required folder structure for each dataset:**
-download the public dataset at [zenodo](https://zenodo.org/records/18793954).
+Required folder structure:
+
 ```
-dataset/
-└── <folder_name>/              # e.g., "044", "601"
-    ├── Dataset/
-    │   ├── Cropped/
-    │   │   └── <prefix>_cropped.tif
-    │   └── Masks/
-    │       └── <prefix>_mask.tif
-    └── aggregated_results.mat  # Contains imgInfo struct array
+dataset/<name>/
+├── Dataset/
+│   ├── Cropped/   <prefix>_cropped.tif
+│   └── Masks/     <prefix>_mask.tif
+└── aggregated_results.mat
 ```
 
-**Add new bubble images:**
-1. Create new folder: `dataset/701/`
-2. Create subfolders: `Dataset/Cropped/` and `Dataset/Masks/`
-3. Add images:
-   - `Dataset/Cropped/bubble001_cropped.tif`
-   - `Dataset/Masks/bubble001_mask.tif`
-4. Create `aggregated_results.mat` in MATLAB:
+Create the `.mat` file in MATLAB:
 
 ```matlab
-% Example: Create imgInfo struct array
-imgInfo(1).imageName = 'bubble001';          % No extension
-imgInfo(1).bubble_diameter = 0.0035;         % Diameter in meters (3.5mm)
-imgInfo(2).imageName = 'bubble002';
-imgInfo(2).bubble_diameter = 0.0028;
+imgInfo(1).imageName = 'bubble001';       % No extension
+imgInfo(1).bubble_diameter = 0.0035;      % Diameter in meters
 
-% Save to mat file
-save('dataset/701/aggregated_results.mat', 'imgInfo');
+save('dataset/<name>/aggregated_results.mat', 'imgInfo');
 ```
 
-**Required fields:**
-- `imageName`: filename prefix (no `.tif` extension)
-- `bubble_diameter`: diameter in meters
+Required fields: `imageName`, `bubble_diameter` (meters).
 
-### Step 2: Validate Single Dataset
+### Step 2 — Validate
 
 ```matlab
-% In MATLAB, set baseFolder to your dataset
 cd tools
-
-% Check file correspondence
-% Edit check_file_correspondence.m: baseFolder = '../dataset/701'
-check_file_correspondence
-
-% Sync database (removes orphans)
-% Edit sync_database.m: baseFolder = '../dataset/701'
-sync_database
-
-% Optional: Balance crops/masks
-balance_crops  % or balance_masks
+% Set baseFolder = '../dataset/<name>' in each script:
+check_file_correspondence   % Verify 1-to-1 crop/mask/mat correspondence
+sync_database               % Remove orphaned files
 ```
 
-### Step 3: Compute Bubble Metrics
+### Step 3 — Compute bubble metrics
 
 ```matlab
-% Batch compute ellipse fits for all bubbles
-% Edit compute_ellipse_fits.m: add '701' to sourceDirs
+% Add folder name to sourceDirs in compute_ellipse_fits.m:
 compute_ellipse_fits
 ```
 
-### Step 4: Merge Multiple Datasets
+### Step 4 — Merge datasets
 
 ```matlab
-% Combine all datasets into one aggregated file
-% Edit combine_datasets.m: add folder names to sourceDirs
-% Example: sourceDirs = {'044','601','701'};
+% Edit sourceDirs list in combine_datasets.m:
 combine_datasets
-
 % Output: ../Aggregated_bubble_data/aggregated_results.mat
 ```
 
-### Step 5: Balance Distribution (Optional)
+### Step 5 — Balance distribution (optional)
 
 ```matlab
-% Filter size bins to reduce peaks
-% Edit filter_size_bins.m: configure targetRange and targetBinCount
-filter_size_bins
-
-% Visualize distribution
-plot_distribution
+filter_size_bins    % Reduce over-represented size bins
+plot_distribution   % Visualize result
 ```
 
-### Step 6: Convert to SQLite
+### Step 6 — Convert to SQLite
 
 ```bash
 cd tools
 python mat_to_sqlite.py
-
 # Input:  ../Aggregated_bubble_data/aggregated_results.mat
 # Output: ../Aggregated_bubble_data/aggregated_results.db
 ```
 
-### Step 7: Generate Synthetic Images
+### Step 7 — Generate images
 
 ```bash
 cd Generator
-
-# Update config.ini paths:
-# [Database]
-# database_path = ../Aggregated_bubble_data
-# aggregated_results_path = ../Aggregated_bubble_data/aggregated_results.db
-
-# Generate images
-python bubble_gen.py
-
-# Generate parameter diagrams
-python bubble_gen_illustration.py
-
-# Output: Generator/output/run0/
+# Verify [Database] paths in config.ini, then:
+python bubble_gen_public.py
 ```
 
-## Troubleshooting
-
-**Problem: "imgInfo variable not found"**
-- Solution: Ensure .mat file contains `imgInfo` struct (not `data` or other names)
-
-**Problem: "Cropped/Mask file mismatch"**
-- Solution: Run `sync_database.m` to remove orphaned files
-
-**Problem: "Target bubble count not reached in illustration"**
-- Solution: Increase `overlap_control`, decrease `BASE_PIXEL_SIZE`, or increase canvas size in `bubble_gen_illustration.py`
-
-**Problem: "K-S test p-value too low"**
-- Solution: Check `filter_size_bins.m` settings or use `direct_pdf` selection method
-
-**Problem: MATLAB .mat file version error in Python**
-- Solution: `mat_to_sqlite.py` handles both v7 and v7.3 formats automatically
+---
 
 ## Database Tools Reference
 
-| Tool | Language | Function |
-|------|----------|----------|
-| `mat_to_sqlite.py` | Python | Convert MATLAB .mat files to SQLite database |
-| `combine_datasets.m` | MATLAB | Merge multiple dataset folders into single aggregated_results.mat |
-| `sync_database.m` | MATLAB | Synchronize .mat file, Cropped/, and Masks/ folders (removes orphans) |
-| `check_file_correspondence.m` | MATLAB | Verify 1-to-1 correspondence between .mat, crops, and masks |
-| `clean_orphaned_files.m` | MATLAB | Delete files in Cropped/Masks not referenced in .mat |
-| `clean_empty_rows.m` | MATLAB | Remove empty rows from aggregated_results.mat |
+| Tool | Language | Purpose |
+|---|---|---|
+| `mat_to_sqlite.py` | Python | Convert `.mat` → SQLite (supports v7 and v7.3) |
+| `combine_datasets.m` | MATLAB | Merge multiple dataset folders into one `.mat` |
+| `sync_database.m` | MATLAB | Synchronize `.mat`, `Cropped/`, `Masks/` (remove orphans) |
+| `check_file_correspondence.m` | MATLAB | Verify 1-to-1 correspondence across all three sources |
+| `clean_orphaned_files.m` | MATLAB | Delete files not referenced in `.mat` |
+| `clean_empty_rows.m` | MATLAB | Remove empty rows from `.mat` |
 | `balance_crops.m` | MATLAB | Remove masks without matching crops |
 | `balance_masks.m` | MATLAB | Remove crops without matching masks |
-| `filter_size_bins.m` | MATLAB | Proportionally reduce bubble counts in specified diameter bins |
-| `compute_ellipse_fits.m` | MATLAB | Batch compute ellipse fits for all masks in dataset folders |
-| `plot_distribution.m` | MATLAB | Plot bubble diameter distribution histogram (Nature-style) |
+| `filter_size_bins.m` | MATLAB | Proportionally reduce counts in specified diameter bins |
+| `compute_ellipse_fits.m` | MATLAB | Batch compute ellipse fits for all masks |
+| `plot_distribution.m` | MATLAB | Plot bubble diameter histogram |
 
-## Example output
+---
+
+## Example Output
 
 <div align="center">
-  <img src="Generator/assets/SynImg.png" alt="PlumeDEBuG Mode Type" width="600">
-  <p><em>Example of PlumeDEBuG's output image and labels</em></p>
+  <img src="Generator/assets/SynImg.png" alt="Synthetic image and COCO labels" width="620">
+  <p><em>Synthetic image with bounding box annotations</em></p>
 </div>
 
 <div align="center">
-  <img src="Generator/assets/output_distribution.png" alt="PlumeDEBuG Mode Type" width="600">
-  <p><em>Example of PlumeDEBuG's output distribution</em></p>
+  <img src="Generator/assets/output_distribution.png" alt="Output diameter distribution" width="620">
+  <p><em>Generated bubble diameter distribution vs. target</em></p>
 </div>
 
 <div align="center">
-  <img src="Generator/assets/Mode.png" alt="PlumeDEBuG Mode Type" width="600">
-  <p><em>Example of PlumeDEBuG's Mode type</em></p>
+  <img src="Generator/assets/Mode.png" alt="Placement modes" width="620">
+  <p><em>Gaussian vs. Random placement modes</em></p>
 </div>
+
+---
+
+## Troubleshooting
+
+| Problem | Solution |
+|---|---|
+| `imgInfo variable not found` | Ensure `.mat` file contains `imgInfo` struct (not `data` or other names) |
+| `Cropped/Mask file mismatch` | Run `sync_database.m` |
+| `Target bubble count not reached` | Increase `overlap_control`, decrease `base_width_ratio`, or reduce `max_bubbles_per_image` |
+| `K-S test p-value too low` | Use `filter_size_bins.m` or switch to `direct_pdf` selection method |
+| MATLAB `.mat` version error | `mat_to_sqlite.py` handles both v7 and v7.3 automatically |
+
+---
 
 ## Contributing
 
-1. Fork the repo
-2. Create feature branch: `git checkout -b feature/name`
-3. Commit changes: `git commit -am 'Add feature'`
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/name`
+3. Commit: `git commit -m 'Add feature'`
 4. Push: `git push origin feature/name`
-5. Open Pull Request
+5. Open a Pull Request
 
-## Demo
-
+---
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License — see [LICENSE](LICENSE) for details.
+
+---
 
 ## Contact
 
-**Xuchen (Schuetzen) Ying** - xuchen.ying@mail.missouri.edu  
+**Xuchen (Schuetzen) Ying** — xuchen.ying@mail.missouri.edu
+**Dr. Binbin Wang** — wangbinb@umsystem.edu
 Project: https://github.com/Schuetzen/PlumeDEBuG
-
-**Dr. Binbin Wang** -  wangbinb@umsystem.edu
 
 ---
 
