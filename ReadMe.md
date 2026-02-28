@@ -25,11 +25,11 @@ Synthetic bubble plume image generator that reproduces key physical characterist
 
 ## Key Features
 
+- **End-to-end demo**: test a trained detection model on real experimental bubble plume data — [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1QHIMCuT1kbyJ0JEbh-Nj-KIkDQ_3L7Ql?usp=sharing)
 - **Five bubble size distributions**: Gaussian, Lognormal, Weibull, Bimodal, Uniform
 - **Trapezoid ROI plume model**: `W(y) = W₀ + 2ky` (Eq. 9)
 - **Unidirectional overlap detection**: `R = A_int / A_exist > w_ol` (Eq. 6–7)
 - **Quadtree spatial acceleration**: O(n log n) collision queries
-- **Two selection methods**: `weighted_sampling` (default) and `direct_pdf`
 - **Feathered compositing**: erosion + Gaussian blur + alpha blend (Eq. 12–18)
 - **COCO-style JSON annotations** per image
 - **K-S test** for distribution validation
@@ -100,7 +100,7 @@ gaussian_scale_divisor = 4.0      ; Gaussian x-spread divisor σ_div
 ```ini
 [Distribution]
 distribution_type = lognormal     ; gaussian | lognormal | weibull | bimodal | uniform
-selection_method = weighted_sampling  ; weighted_sampling (default) | direct_pdf
+selection_method = direct_pdf         ; direct_pdf (default) | weighted_sampling
 ```
 
 Distribution-specific sections (only the active one is used):
@@ -142,8 +142,8 @@ delta = 0.001       ; Half-range (m), f(r) = 1/(2δ) on [r₀−δ, r₀+δ]
 
 | Method | Description |
 |---|---|
-| `weighted_sampling` | Multiplies target PDF weight by bin sample count — balances distribution fidelity with data availability. **Default.** |
-| `direct_pdf` | Samples bins according to target PDF only, ignoring how many real bubbles exist per bin. |
+| `direct_pdf` | Samples bins according to target PDF only, ignoring how many real bubbles exist per bin. **Default.** |
+| `weighted_sampling` | Multiplies target PDF weight by bin sample count — balances distribution fidelity with data availability. |
 
 ---
 
